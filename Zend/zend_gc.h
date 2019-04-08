@@ -40,12 +40,12 @@
 # define GC_BENCH_PEAK(peak, counter)
 #endif
 
-#define GC_COLOR  0xc000
+#define GC_COLOR  0xc000 /* 颜色标志位 */
 
-#define GC_BLACK  0x0000
-#define GC_WHITE  0x8000
-#define GC_GREY   0x4000
-#define GC_PURPLE 0xc000
+#define GC_BLACK  0x0000 /* 黑色 */
+#define GC_WHITE  0x8000 /* 白色 */
+#define GC_GREY   0x4000 /* 灰色 */
+#define GC_PURPLE 0xc000 /* 紫色 */
 
 #define GC_ADDRESS(v) \
 	((v) & ~GC_COLOR)

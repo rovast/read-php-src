@@ -27,6 +27,10 @@
 #include "zend_portability.h"
 #include "zend_long.h"
 
+/**
+ * 字节顺序 (https://www.wikiwand.com/zh-hans/%E5%AD%97%E8%8A%82%E5%BA%8F)
+ * 大端序 小端序
+ */
 #ifdef WORDS_BIGENDIAN
 # define ZEND_ENDIAN_LOHI(lo, hi)          hi; lo;
 # define ZEND_ENDIAN_LOHI_3(lo, mi, hi)    hi; mi; lo;
@@ -98,6 +102,9 @@ typedef void (*sort_func_t)(void *, size_t, size_t, compare_func_t, swap_func_t)
 typedef void (*dtor_func_t)(zval *pDest);
 typedef void (*copy_ctor_func_t)(zval *pElement);
 
+/**
+ * 占用 8 个字节
+ */
 typedef union _zend_value {
 	zend_long         lval;				/* long value */
 	double            dval;				/* double value */
@@ -118,40 +125,48 @@ typedef union _zend_value {
 	} ww;
 } zend_value;
 
+/**
+ * 占用 16 个字节（8 + 8）
+ * 注意内存的 8 字节对齐
+ */
 struct _zval_struct {
 	zend_value        value;			/* value */
 	union {
 		struct {
-			ZEND_ENDIAN_LOHI_4(
+			ZEND_ENDIAN_LOHI_4( /* 采用大端序存储，这样通过 type_info 可以正确映射 v 结构体的值 */
 				zend_uchar    type,			/* active type */
 				zend_uchar    type_flags,
 				zend_uchar    const_flags,
 				zend_uchar    reserved)	    /* call info for EX(This) */
 		} v;
-		uint32_t type_info;
+		uint32_t type_info;  /* type_info 和 v 是共享一段内存，所以本质上是 v 结构体的另一种表达形式 */
 	} u1;
 	union {
-		uint32_t     next;                 /* hash collision chain */
-		uint32_t     cache_slot;           /* literal cache slot */
-		uint32_t     lineno;               /* line number (for ast nodes) */
-		uint32_t     num_args;             /* arguments number for EX(This) */
-		uint32_t     fe_pos;               /* foreach position */
-		uint32_t     fe_iter_idx;          /* foreach iterator index */
-		uint32_t     access_flags;         /* class constant access flags */
-		uint32_t     property_guard;       /* single property guard */
+		uint32_t     next;                 /* hash collision chain | 哈希碰撞环，用于解决哈希冲突 */
+		uint32_t     cache_slot;           /* literal cache slot | 字面量缓存， p39 书中解释为“运行时缓存” */
+		uint32_t     lineno;               /* line number (for ast nodes) | 行号，用于 AST 节点 */
+		uint32_t     num_args;             /* arguments number for EX(This) | 参数个数 */
+		uint32_t     fe_pos;               /* foreach position | 遍历数组时的位置 */
+		uint32_t     fe_iter_idx;          /* foreach iterator index | 这个字段是针对对象的 */
+		uint32_t     access_flags;         /* class constant access flags | 访问标识 public private protected */
+		uint32_t     property_guard;       /* single property guard | 防止类的魔术方法循环引用 */
 	} u2;
 };
 
+/**
+ * 引用计数 GC
+ * 定期检查计数器，如果计数器为 0，表示可以清除
+ */
 typedef struct _zend_refcounted_h {
 	uint32_t         refcount;			/* reference counter 32-bit */
 	union {
 		struct {
-			ZEND_ENDIAN_LOHI_3(
-				zend_uchar    type,
-				zend_uchar    flags,    /* used for strings & objects */
-				uint16_t      gc_info)  /* keeps GC root number (or 0) and color */
+			ZEND_ENDIAN_LOHI_3( /* 采用大端序存储，这样通过 type_info 可以正确映射 v 结构体的值 */
+				zend_uchar    type,  /* 当前元素的数据类型 */
+				zend_uchar    flags,    /* used for strings & objects | 标记字符串或对象 */
+				uint16_t      gc_info)  /* keeps GC root number (or 0) and color | 记录在 GC 池中的位置和颜色 */
 		} v;
-		uint32_t type_info;
+		uint32_t type_info;  /* type_info 和 v 是共享一段内存，所以本质上是 v 结构体的另一种表达形式 */
 	} u;
 } zend_refcounted_h;
 
@@ -159,9 +174,13 @@ struct _zend_refcounted {
 	zend_refcounted_h gc;
 };
 
+/**
+ * string 类型的定义
+ * 使用 柔型数组（flexible array member）的特性，避免了 php5 的数据和结构分离，提升了读写效率
+ */
 struct _zend_string {
 	zend_refcounted_h gc;
-	zend_ulong        h;                /* hash value */
+	zend_ulong        h;                /* hash value | 冗余了 hash 值，提升了运行效率 */
 	size_t            len;
 	char              val[1];
 };
@@ -299,33 +318,33 @@ struct _zend_ast_ref {
 	zend_ast         *ast;
 };
 
-/* regular data types */
-#define IS_UNDEF					0
-#define IS_NULL						1
-#define IS_FALSE					2
-#define IS_TRUE						3
-#define IS_LONG						4
-#define IS_DOUBLE					5
-#define IS_STRING					6
-#define IS_ARRAY					7
-#define IS_OBJECT					8
-#define IS_RESOURCE					9
-#define IS_REFERENCE				10
+/* regular data types | 常用的数据类型 */
+#define IS_UNDEF					0  /* 标记未使用的类型，表示可以被覆盖或者删除的变量。比如：unset 数组，并不是直接删除，而是先标记 */
+#define IS_NULL						1  /* NULL 型 */
+#define IS_FALSE					2  /* 布尔 false */
+#define IS_TRUE						3  /* 布尔 true */
+#define IS_LONG						4  /* 长整形 */
+#define IS_DOUBLE					5  /* 浮点型 */
+#define IS_STRING					6  /* 字符型 */
+#define IS_ARRAY					7  /* 数组 */
+#define IS_OBJECT					8  /* 对象 */
+#define IS_RESOURCE					9  /* 资源 */
+#define IS_REFERENCE				10 /* 参考类型（内部使用），PHP7 使用不同的方法来处理 & */
 
 /* constant expressions */
-#define IS_CONSTANT					11
-#define IS_CONSTANT_AST				12
+#define IS_CONSTANT					11 /* 常量 */
+#define IS_CONSTANT_AST				12 /* 常量类型 AST 树 */
 
-/* fake types */
-#define _IS_BOOL					13
-#define IS_CALLABLE					14
-#define IS_ITERABLE					19
-#define IS_VOID						18
+/* fake types | 伪类型 */
+#define _IS_BOOL					13 /* 布尔 */
+#define IS_CALLABLE					14 /* callable */
+#define IS_ITERABLE					19 /* 可迭代 */
+#define IS_VOID						18 /* void */
 
-/* internal types */
-#define IS_INDIRECT             	15
-#define IS_PTR						17
-#define _IS_ERROR					20
+/* internal types | 内部类型 */
+#define IS_INDIRECT             	15 /* 间接类型。PHP7 的 hashtable设计和 5 有很大不同，这个用于解决全局符号访问 CV 变量表的问题 */
+#define IS_PTR						17 /* 指针类型 */
+#define _IS_ERROR					20 /* 错误类型 */
 
 static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 	return pz->u1.v.type;
@@ -391,11 +410,11 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define Z_GC_TYPE_INFO_P(zval_p)	Z_GC_TYPE_INFO(*(zval_p))
 
 /* zval.u1.v.type_flags */
-#define IS_TYPE_CONSTANT			(1<<0)
-#define IS_TYPE_IMMUTABLE			(1<<1)
-#define IS_TYPE_REFCOUNTED			(1<<2)
-#define IS_TYPE_COLLECTABLE			(1<<3)
-#define IS_TYPE_COPYABLE			(1<<4)
+#define IS_TYPE_CONSTANT			(1<<0) /* 是常量类型 */
+#define IS_TYPE_IMMUTABLE			(1<<1) /* 不可变的类型，比如存在共享内存中的数组 */
+#define IS_TYPE_REFCOUNTED			(1<<2) /* 需要引用计数的类型 */
+#define IS_TYPE_COLLECTABLE			(1<<3) /* 可能包含循环引用的类型（IS_ARRAY, IS_OBJECT） */
+#define IS_TYPE_COPYABLE			(1<<4) /* 是可能被复制的类型 */
 
 /* extended types */
 #define IS_INTERNED_STRING_EX		IS_STRING
@@ -420,12 +439,12 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define RESET_CONSTANT_VISITED(p)	Z_CONST_FLAGS_P(p) &= ~IS_CONSTANT_VISITED_MARK
 
 /* string flags (zval.value->gc.u.flags) */
-#define IS_STR_PERSISTENT			(1<<0) /* allocated using malloc   */
+#define IS_STR_PERSISTENT			(1<<0) /* allocated using malloc | 是 malloc 分配内存的字符串  */
 #define IS_STR_INTERNED				(1<<1) /* interned string          */
-#define IS_STR_PERMANENT        	(1<<2) /* relives request boundary */
+#define IS_STR_PERMANENT        	(1<<2) /* relives request boundary | 不可变的字符串，起哨兵作用 */
 
-#define IS_STR_CONSTANT             (1<<3) /* constant index */
-#define IS_STR_CONSTANT_UNQUALIFIED (1<<4) /* the same as IS_CONSTANT_UNQUALIFIED */
+#define IS_STR_CONSTANT             (1<<3) /* constant index | 代表常量的字符串 */
+#define IS_STR_CONSTANT_UNQUALIFIED (1<<4) /* the same as IS_CONSTANT_UNQUALIFIED | 带有可能命名空间的常量字符串 */
 
 /* array flags */
 #define IS_ARRAY_IMMUTABLE			(1<<1) /* the same as IS_TYPE_IMMUTABLE */
