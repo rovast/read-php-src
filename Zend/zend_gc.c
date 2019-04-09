@@ -256,11 +256,15 @@ ZEND_API void gc_reset(void)
 	}
 }
 
+/**
+ * gc 初始化
+ * @return
+ */
 ZEND_API void gc_init(void)
 {
 	if (GC_G(buf) == NULL && GC_G(gc_enabled)) {
-		GC_G(buf) = (gc_root_buffer*) malloc(sizeof(gc_root_buffer) * GC_ROOT_BUFFER_MAX_ENTRIES);
-		GC_G(last_unused) = &GC_G(buf)[GC_ROOT_BUFFER_MAX_ENTRIES];
+		GC_G(buf) = (gc_root_buffer*) malloc(sizeof(gc_root_buffer) * GC_ROOT_BUFFER_MAX_ENTRIES); /* buf 指向首地址 */
+		GC_G(last_unused) = &GC_G(buf)[GC_ROOT_BUFFER_MAX_ENTRIES]; /* last_unused 指向最后的地址 */
 		gc_reset();
 	}
 }

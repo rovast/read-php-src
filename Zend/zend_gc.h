@@ -60,6 +60,10 @@
 #define GC_INFO_SET_PURPLE(v) \
 	do {(v) = (v) | GC_COLOR;} while (0)
 
+/**
+ * 双向列表
+ * 记录引用技术的相关信息
+ */
 typedef struct _gc_root_buffer {
 	zend_refcounted          *ref;
 	struct _gc_root_buffer   *next;     /* double-linked list               */
@@ -67,22 +71,27 @@ typedef struct _gc_root_buffer {
 	uint32_t                 refcount;
 } gc_root_buffer;
 
+/**
+ * 垃圾收集器
+ * 垃圾回收包含：垃圾收集器和垃圾回收算法
+ * 总大小 120 字节
+ */
 typedef struct _zend_gc_globals {
-	zend_bool         gc_enabled;
-	zend_bool         gc_active;
-	zend_bool         gc_full;
+	zend_bool         gc_enabled; /* 是否开启 gc */
+	zend_bool         gc_active;  /* 垃圾回收算法是否运行 */
+	zend_bool         gc_full;    /* 垃圾缓冲区是否满了，在 debug 模式下有用 */
 
-	gc_root_buffer   *buf;				/* preallocated arrays of buffers   */
-	gc_root_buffer    roots;			/* list of possible roots of cycles */
-	gc_root_buffer   *unused;			/* list of unused buffers           */
-	gc_root_buffer   *first_unused;		/* pointer to first unused buffer   */
-	gc_root_buffer   *last_unused;		/* pointer to last unused buffer    */
+	gc_root_buffer   *buf;				/* preallocated arrays of buffers   | 垃圾缓冲区。PHP7 默认大小位 10,000 个节点位置  */
+	gc_root_buffer    roots;			/* list of possible roots of cycles | 指向缓冲区最新加入的可能是垃圾的元素 */
+	gc_root_buffer   *unused;			/* list of unused buffers           | 未使用的缓冲区列表  */
+	gc_root_buffer   *first_unused;		/* pointer to first unused buffer   | 指向第一个未使用的缓冲区   */
+	gc_root_buffer   *last_unused;		/* pointer to last unused buffer    | 指向最后一个未使用的缓冲区  */
 
-	gc_root_buffer    to_free;			/* list to free                     */
-	gc_root_buffer   *next_to_free;
+	gc_root_buffer    to_free;			/* list to free                     | 待释放的列表 */
+	gc_root_buffer   *next_to_free;     /* 下一个待释放的列表 */
 
-	uint32_t gc_runs;
-	uint32_t collected;
+	uint32_t gc_runs;   /* 记录垃圾回收算法运行的次数，当缓冲区满了，才会运行 gc 算法 */
+	uint32_t collected; /* 记录垃圾回收算法回收的垃圾数 */
 
 #if GC_BENCH
 	uint32_t root_buf_length;

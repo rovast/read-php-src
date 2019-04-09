@@ -19,6 +19,11 @@
    +----------------------------------------------------------------------+
 */
 
+/**
+ * 此文件定义了 PHP 的基本变量类型
+ * 通过结构体 _zval_struct 来定义了 zval 的基本结构
+ */
+
 /* $Id$ */
 
 #ifndef ZEND_TYPES_H
@@ -103,12 +108,14 @@ typedef void (*dtor_func_t)(zval *pDest);
 typedef void (*copy_ctor_func_t)(zval *pElement);
 
 /**
+ * zend_value 联合体，定义了 zval.value 的可能类型
+ * 标记 zval.value 到底是 整形？浮点？引用？数组？等等
  * 占用 8 个字节
  */
 typedef union _zend_value {
 	zend_long         lval;				/* long value */
 	double            dval;				/* double value */
-	zend_refcounted  *counted;
+	zend_refcounted  *counted; /* 引用计数 */
 	zend_string      *str;
 	zend_array       *arr;
 	zend_object      *obj;
@@ -126,6 +133,7 @@ typedef union _zend_value {
 } zend_value;
 
 /**
+ * zval 结构体，定义了 PHP 的基本变量的实现
  * 占用 16 个字节（8 + 8）
  * 注意内存的 8 字节对齐
  */
@@ -179,10 +187,10 @@ struct _zend_refcounted {
  * 使用 柔型数组（flexible array member）的特性，避免了 php5 的数据和结构分离，提升了读写效率
  */
 struct _zend_string {
-	zend_refcounted_h gc;
+	zend_refcounted_h gc; /* 存放 gc 相关内容  */
 	zend_ulong        h;                /* hash value | 冗余了 hash 值，提升了运行效率 */
 	size_t            len;
-	char              val[1];
+	char              val[1]; /* 柔型数组（flexible array member） 初始化时 《c primer plus 第六版》 14.7.9章节 page 463 */
 };
 
 typedef struct _Bucket {
