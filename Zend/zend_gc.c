@@ -27,10 +27,10 @@
  * Colors and its meaning
  * ----------------------
  *
- * BLACK  (GC_BLACK)   - In use or free.
- * GREY   (GC_GREY)    - Possible member of cycle.
- * WHITE  (GC_WHITE)   - Member of garbage cycle.
- * PURPLE (GC_PURPLE)  - Possible root of cycle.
+ * BLACK  (GC_BLACK)   - In use or free.           | 在用的或者是待释放的
+ * GREY   (GC_GREY)    - Possible member of cycle. | 可能是回收的成员
+ * WHITE  (GC_WHITE)   - Member of garbage cycle.  | 垃圾。需要回收
+ * PURPLE (GC_PURPLE)  - Possible root of cycle.   | 可能是回收的 root?
  *
  * Colors described in the paper but not used
  * ------------------------------------------
@@ -40,34 +40,49 @@
  * ORANGE - Candidate cycle awaiting epoch boundary.
  *
  *
- * Flow
+ * Flow | 流程
  * =====
  *
  * The garbage collect cycle starts from 'gc_mark_roots', which traverses the
  * possible roots, and calls mark_grey for roots are marked purple with
  * depth-first traverse.
  *
+ * | 回收算法从 'gc_mark_roots' 开始，对 possible root 环(紫色)进行深度遍历。将其中【紫色】的元素标记为【灰色】。
+ *
  * After all possible roots are traversed and marked,
  * gc_scan_roots will be called, and each root will be called with
  * gc_scan(root->ref)
  *
+ * | 当所有 possible root 遍历和标记后，调用 gc_scan_roots，对其中的每个 root 进行 gc_scan(root->ref)
+ *
  * gc_scan checkes the colors of possible members.
+ *
+ * | gc_scan 检查每个成员的颜色
  *
  * If the node is marked as grey and the refcount > 0
  *    gc_scan_black will be called on that node to scan it's subgraph.
  * otherwise (refcount == 0), it marks the node white.
  *
+ * | 如果节点是 (color=grey && refcount > 0)[是灰色的，并且引用计数大于1]，则标记位黑色。
+ * | 否则的话，引用计数为0，表示这个是个垃圾，标记为白色。
+ *
  * A node MAY be added to possbile roots when ZEND_UNSET_VAR happens or
  * zend_assign_to_variable is called only when possible garbage node is
  * produced.
- * gc_possible_root() will be called to add the nodes to possible roots.
+ * gc_possible_root() will be called to add the nodes to possible roots
+ *
+ * | 如果调用了 ZEND_UNSET_VAR 或者 zend_assign_to_variable，并且产生了新的 possible 来级
+ * | gc_possible_root() 会被调用，去添加节点到 possible roots
  *
  *
  * For objects, we call their get_gc handler (by default 'zend_std_get_gc') to
  * get the object properties to scan.
  *
+ * | 对于 objects，我们调用他们自己的 get_gc 处理器（默认是 'zend_std_get_gc'） 来扫描 object 的 properties
  *
  * @see http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon01Concurrent.pdf
+ *
+ * | 阅读上面的 pdf 了解更多吧
  */
 #include "zend.h"
 #include "zend_API.h"
@@ -269,6 +284,11 @@ ZEND_API void gc_init(void)
 	}
 }
 
+/**
+ * 将可能是垃圾的元素加入到 root 环
+ * @param ref
+ * @return
+ */
 ZEND_API void ZEND_FASTCALL gc_possible_root(zend_refcounted *ref)
 {
 	gc_root_buffer *newRoot;
@@ -1051,9 +1071,9 @@ ZEND_API int zend_gc_collect_cycles(void)
 		GC_G(gc_active) = 1;
 
 		GC_TRACE("Marking roots");
-		gc_mark_roots();
+		gc_mark_roots(); /* 扫描 roots，将紫色标记为灰色 */
 		GC_TRACE("Scanning roots");
-		gc_scan_roots();
+		gc_scan_roots(); /* 扫描 roots，将灰色标记位白色 */
 
 #if ZEND_GC_DEBUG
 		orig_gc_full = GC_G(gc_full);
@@ -1062,7 +1082,7 @@ ZEND_API int zend_gc_collect_cycles(void)
 
 		GC_TRACE("Collecting roots");
 		additional_buffer = NULL;
-		count = gc_collect_roots(&gc_flags, &additional_buffer);
+		count = gc_collect_roots(&gc_flags, &additional_buffer); /* 扫描 roots，收集白色元素，并将黑色元素移出 roots */
 #if ZEND_GC_DEBUG
 		GC_G(gc_full) = orig_gc_full;
 #endif
@@ -1091,6 +1111,9 @@ ZEND_API int zend_gc_collect_cycles(void)
 		GC_G(gc_full) = 0;
 #endif
 
+		/**
+		 * 如果对象定义了自己的析构函数
+		 */
 		if (gc_flags & GC_HAS_DESTRUCTORS) {
 			GC_TRACE("Calling destructors");
 			if (EG(objects_store).object_buckets) {
