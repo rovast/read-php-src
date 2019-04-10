@@ -78,6 +78,9 @@ void zend_known_interned_strings_init(zend_string ***strings, uint32_t *count)
 	*count   = known_interned_strings_count;
 }
 
+/**
+ * 初始化 CG 内部字符串存储哈希表，并把 PHP 关键字等字符串写进去
+ */
 void zend_interned_strings_init(void)
 {
 #ifndef ZTS
@@ -108,6 +111,9 @@ void zend_interned_strings_init(void)
 	zend_interned_strings_restore = zend_interned_strings_restore_int;
 }
 
+/**
+ * 销毁整个 CG 哈希表，在 php_module_shutdown 阶段触发
+ */
 void zend_interned_strings_dtor(void)
 {
 #ifndef ZTS
@@ -126,6 +132,9 @@ void zend_interned_strings_dtor(void)
 	known_interned_strings_count = 0;
 }
 
+/**
+ * 把一个 zend_string 写入 CG 哈希表中，若已存在数据，则返回它，否则写入当前数据并返回
+ */
 static zend_string *zend_new_interned_string_int(zend_string *str)
 {
 #ifndef ZTS
@@ -194,6 +203,9 @@ static zend_string *zend_new_interned_string_int(zend_string *str)
 #endif
 }
 
+/**
+ * 把 CG 哈希表的字符串全部标识成永久字符串，注意，标识的时候只有PHP关键字、内部函数名、内部方法名等
+ */
 static void zend_interned_strings_snapshot_int(void)
 {
 #ifndef ZTS
@@ -210,6 +222,9 @@ static void zend_interned_strings_snapshot_int(void)
 #endif
 }
 
+/**
+ * 销毁 CG 哈希表中字符串类型位非永久字符串的值，在 php_request_shutdown 阶段释放
+ */
 static void zend_interned_strings_restore_int(void)
 {
 #ifndef ZTS

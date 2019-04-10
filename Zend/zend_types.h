@@ -187,10 +187,10 @@ struct _zend_refcounted {
  * 使用 柔型数组（flexible array member）的特性，避免了 php5 的数据和结构分离，提升了读写效率
  */
 struct _zend_string {
-	zend_refcounted_h gc; /* 存放 gc 相关内容  */
-	zend_ulong        h;                /* hash value | 冗余了 hash 值，提升了运行效率 */
-	size_t            len;
-	char              val[1]; /* 柔型数组（flexible array member） 初始化时 《c primer plus 第六版》 14.7.9章节 page 463 */
+	zend_refcounted_h gc;      /* 存放 gc 相关内容  */
+	zend_ulong        h;       /* hash value | 冗余了 hash 值，提升了运行效率 。只有当字符串用作数组的 key 时才会初始化*/
+	size_t            len;     /* 字符串长度 */
+	char              val[1];  /* （这里不使用 val[] 或者 val[0] 是为了兼容不同版本的编译器 C99之前） 柔型数组（flexible array member） 初始化时 《c primer plus 第六版》 14.7.9章节 page 463。 */
 };
 
 typedef struct _Bucket {

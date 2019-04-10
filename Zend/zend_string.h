@@ -58,9 +58,9 @@ END_EXTERN_C()
 
 #define ZSTR_EMPTY_ALLOC()				CG(empty_string)
 
-#define _ZSTR_HEADER_SIZE XtOffsetOf(zend_string, val)
+#define _ZSTR_HEADER_SIZE XtOffsetOf(zend_string, val) /* zend_string 结构体不包含柔性数组时的大小 */
 
-#define _ZSTR_STRUCT_SIZE(len) (_ZSTR_HEADER_SIZE + len + 1)
+#define _ZSTR_STRUCT_SIZE(len) (_ZSTR_HEADER_SIZE + len + 1) /* 获取当前 zend_string 结构体的大小 */
 
 #define ZSTR_ALLOCA_ALLOC(str, _len, use_heap) do { \
 	(str) = (zend_string *)do_alloca(ZEND_MM_ALIGNED_SIZE_EX(_ZSTR_STRUCT_SIZE(_len), 8), (use_heap)); \
@@ -79,7 +79,11 @@ END_EXTERN_C()
 #define ZSTR_ALLOCA_FREE(str, use_heap) free_alloca(str, use_heap)
 
 /*---*/
-
+/**
+ * 得到字符串的哈希值，若没有，则实时计算并存储
+ * @param s
+ * @return
+ */
 static zend_always_inline zend_ulong zend_string_hash_val(zend_string *s)
 {
 	if (!ZSTR_H(s)) {
@@ -88,11 +92,20 @@ static zend_always_inline zend_ulong zend_string_hash_val(zend_string *s)
 	return ZSTR_H(s);
 }
 
+/**
+ * 哈希值置为 0
+ * @param s
+ */
 static zend_always_inline void zend_string_forget_hash_val(zend_string *s)
 {
 	ZSTR_H(s) = 0;
 }
 
+/**
+ * 读取字符串的引用计数
+ * @param s
+ * @return
+ */
 static zend_always_inline uint32_t zend_string_refcount(const zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -101,6 +114,11 @@ static zend_always_inline uint32_t zend_string_refcount(const zend_string *s)
 	return 1;
 }
 
+/**
+ * 引用计数 +1
+ * @param s
+ * @return
+ */
 static zend_always_inline uint32_t zend_string_addref(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -109,6 +127,11 @@ static zend_always_inline uint32_t zend_string_addref(zend_string *s)
 	return 1;
 }
 
+/**
+ * 引用计数 -1
+ * @param s
+ * @return
+ */
 static zend_always_inline uint32_t zend_string_delref(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -117,13 +140,20 @@ static zend_always_inline uint32_t zend_string_delref(zend_string *s)
 	return 1;
 }
 
+/**
+ * zend_string 类型申请内存的处理函数
+ * 分配内存及 初始化内存的值
+ * @param len
+ * @param persistent
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_alloc(size_t len, int persistent)
 {
 	zend_string *ret = (zend_string *)pemalloc(ZEND_MM_ALIGNED_SIZE(_ZSTR_STRUCT_SIZE(len)), persistent);
 
 	GC_REFCOUNT(ret) = 1;
 #if 1
-	/* optimized single assignment */
+	/* optimized single assignment | 这个代码是下面 #else 优化成一行的另外一种写法 */
 	GC_TYPE_INFO(ret) = IS_STRING | ((persistent ? IS_STR_PERSISTENT : 0) << 8);
 #else
 	GC_TYPE(ret) = IS_STRING;
@@ -135,6 +165,14 @@ static zend_always_inline zend_string *zend_string_alloc(size_t len, int persist
 	return ret;
 }
 
+/**
+ * safe_pemalloc
+ * @param n
+ * @param m
+ * @param l
+ * @param persistent
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_safe_alloc(size_t n, size_t m, size_t l, int persistent)
 {
 	zend_string *ret = (zend_string *)safe_pemalloc(n, m, ZEND_MM_ALIGNED_SIZE(_ZSTR_STRUCT_SIZE(l)), persistent);
@@ -153,6 +191,13 @@ static zend_always_inline zend_string *zend_string_safe_alloc(size_t n, size_t m
 	return ret;
 }
 
+/**
+ * 初始化字符串，并追加 \0
+ * @param str
+ * @param len
+ * @param persistent
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_init(const char *str, size_t len, int persistent)
 {
 	zend_string *ret = zend_string_alloc(len, persistent);
@@ -162,6 +207,11 @@ static zend_always_inline zend_string *zend_string_init(const char *str, size_t 
 	return ret;
 }
 
+/**
+ * 使用引用计数的方式拷贝字符串
+ * @param s
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_copy(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -170,6 +220,12 @@ static zend_always_inline zend_string *zend_string_copy(zend_string *s)
 	return s;
 }
 
+/**
+ * 直接复制一个字符串
+ * @param s
+ * @param persistent
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_dup(zend_string *s, int persistent)
 {
 	if (ZSTR_IS_INTERNED(s)) {
@@ -198,6 +254,13 @@ static zend_always_inline zend_string *zend_string_realloc(zend_string *s, size_
 	return ret;
 }
 
+/**
+ * 扩容到 len，保留原来的值
+ * @param s
+ * @param len
+ * @param persistent
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_extend(zend_string *s, size_t len, int persistent)
 {
 	zend_string *ret;
@@ -218,6 +281,13 @@ static zend_always_inline zend_string *zend_string_extend(zend_string *s, size_t
 	return ret;
 }
 
+/**
+ * 截断到 len，并保留开头到 len 的值
+ * @param s
+ * @param len
+ * @param persistent
+ * @return
+ */
 static zend_always_inline zend_string *zend_string_truncate(zend_string *s, size_t len, int persistent)
 {
 	zend_string *ret;
@@ -257,6 +327,10 @@ static zend_always_inline zend_string *zend_string_safe_realloc(zend_string *s, 
 	return ret;
 }
 
+/**
+ * 释放字符串内存，当 GC 计数小于等于 1 时
+ * @param s
+ */
 static zend_always_inline void zend_string_free(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -265,6 +339,10 @@ static zend_always_inline void zend_string_free(zend_string *s)
 	}
 }
 
+/**
+ * GC 引用计数减一，当为 0 时直接释放内存
+ * @param s
+ */
 static zend_always_inline void zend_string_release(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -274,15 +352,26 @@ static zend_always_inline void zend_string_release(zend_string *s)
 	}
 }
 
-
+/**
+ * 普通判等
+ * @param s1
+ * @param s2
+ * @return
+ */
 static zend_always_inline zend_bool zend_string_equals(zend_string *s1, zend_string *s2)
 {
 	return s1 == s2 || (ZSTR_LEN(s1) == ZSTR_LEN(s2) && !memcmp(ZSTR_VAL(s1), ZSTR_VAL(s2), ZSTR_LEN(s1)));
 }
 
+/**
+ * 基于二进制安全，两个 zend_string 类型的字符串判等
+ */
 #define zend_string_equals_ci(s1, s2) \
 	(ZSTR_LEN(s1) == ZSTR_LEN(s2) && !zend_binary_strcasecmp(ZSTR_VAL(s1), ZSTR_LEN(s1), ZSTR_VAL(s2), ZSTR_LEN(s2)))
 
+/**
+ * 基于二进制安全。zend_string 类型和 char* 字符串判等
+ */
 #define zend_string_equals_literal_ci(str, c) \
 	(ZSTR_LEN(str) == sizeof(c) - 1 && !zend_binary_strcasecmp(ZSTR_VAL(str), ZSTR_LEN(str), (c), sizeof(c) - 1))
 
@@ -320,6 +409,16 @@ static zend_always_inline zend_bool zend_string_equals(zend_string *s1, zend_str
  *
  *
  *                  -- Ralf S. Engelschall <rse@engelschall.com>
+ * | php 的哈希算法。基于 times33哈希算法
+ * | @see http://www.nowamagic.net/academy/detail/3008095
+ * | 33这个奇妙的数字，为什么它能够比其他数值效果更好呢？无论重要与否，却从来没有人能够充分说明其中的原因。
+ * | 因此在这里，我来试着解释一下。如果某人试着测试1到256之间的每个数字，他会发现，没有哪一个数字的表现是特别突出的。
+ * | 其中的128个奇数(1除外)的表现都差不多，都能够达到一个能接受的哈希分布，平均分布率大概是86%。
+ * | 如果比较这128个奇数中的方差值（统计术语，表示随机变量与它的数学期望之间的平均偏离程度）的话，数字33并不是表现最好的一个。
+ * | (这里按照我的理解，照常理，应该是方差越小稳定，但是由于这里不清楚作者方差的计算公式，以及在哈希离散表，是不是离散度越大越好，
+ * | 所以不得而知这里的表现好是指方差值大还是指方差值小），但是数字33以及其他一些同样好的数字比如 17,31,63,127和129对于其他剩下的数字，
+ * | 在面对大量的哈希运算时，仍然有一个大大的优势，就是这些数字能够将乘法用位运算配合加减法来替换，这样的运算速度会提高。
+ * | 毕竟一个好的哈希算法要求既有好的分布，也要有高的计算速度，能同时达到这两点的数字很少
  */
 
 static zend_always_inline zend_ulong zend_inline_hash_func(const char *str, size_t len)
