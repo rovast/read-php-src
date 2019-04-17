@@ -2546,6 +2546,15 @@ ZEND_API int ZEND_FASTCALL zend_binary_strncmp(const char *s1, size_t len1, cons
 }
 /* }}} */
 
+/**
+ * 二进制安全的字符串比较
+ * 循环比较每个字符的 ASCII 码。如果相等则返回 0，如果不等则返回两者的长度差
+ * @param s1
+ * @param len1
+ * @param s2
+ * @param len2
+ * @return
+ */
 ZEND_API int ZEND_FASTCALL zend_binary_strcasecmp(const char *s1, size_t len1, const char *s2, size_t len2) /* {{{ */
 {
 	size_t len;
@@ -2753,6 +2762,9 @@ ZEND_API void ZEND_FASTCALL zend_locale_sprintf_double(zval *op ZEND_FILE_LINE_D
 }
 /* }}} */
 
+/**
+ * 数值转字符串
+ */
 ZEND_API zend_string* ZEND_FASTCALL zend_long_to_str(zend_long num) /* {{{ */
 {
 	char buf[MAX_LENGTH_OF_LONG + 1];

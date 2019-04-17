@@ -447,9 +447,9 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define RESET_CONSTANT_VISITED(p)	Z_CONST_FLAGS_P(p) &= ~IS_CONSTANT_VISITED_MARK
 
 /* string flags (zval.value->gc.u.flags) */
-#define IS_STR_PERSISTENT			(1<<0) /* allocated using malloc | 是 malloc 分配内存的字符串  */
-#define IS_STR_INTERNED				(1<<1) /* interned string          */
-#define IS_STR_PERMANENT        	(1<<2) /* relives request boundary | 不可变的字符串，起哨兵作用 */
+#define IS_STR_PERSISTENT			(1<<0) /* allocated using malloc  | 是 malloc 分配内存的字符串，不会走 PHP 内存池  */
+#define IS_STR_INTERNED				(1<<1) /* interned string         | 主要指 PHP 已知函数，比如 保留字（this class）、内部函数名、超全局变量等 */
+#define IS_STR_PERMANENT        	(1<<2) /* relives request boundary| 永久字符串，属于永久值，常驻内存 */
 
 #define IS_STR_CONSTANT             (1<<3) /* constant index | 代表常量的字符串 */
 #define IS_STR_CONSTANT_UNQUALIFIED (1<<4) /* the same as IS_CONSTANT_UNQUALIFIED | 带有可能命名空间的常量字符串 */

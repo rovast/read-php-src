@@ -49,6 +49,11 @@ ZEND_API void ZEND_FASTCALL smart_str_append_escaped(smart_str *str, const char 
 
 END_EXTERN_C()
 
+/**
+ * 只能字符串申请内存的优化
+ * str->s 表示已经使用的内存长度  str->a 表示需要申请的总长度
+ * 如果发现需要使用的的长度够用了，不需要重新申请，直接使用即可
+ */
 static zend_always_inline size_t smart_str_alloc(smart_str *str, size_t len, zend_bool persistent) {
 	if (UNEXPECTED(!str->s)) {
 		goto do_smart_str_realloc;
@@ -66,6 +71,11 @@ do_smart_str_realloc:
 	return len;
 }
 
+/**
+ * 释放
+ * @param str
+ * @return
+ */
 static zend_always_inline void smart_str_free(smart_str *str) {
 	if (str->s) {
 		zend_string_release(str->s);
@@ -74,46 +84,101 @@ static zend_always_inline void smart_str_free(smart_str *str) {
 	str->a = 0;
 }
 
+/**
+ * smart_str 尾部追加 0
+ * @param str
+ * @return
+ */
 static zend_always_inline void smart_str_0(smart_str *str) {
 	if (str->s) {
 		ZSTR_VAL(str->s)[ZSTR_LEN(str->s)] = '\0';
 	}
 }
 
+/**
+ * smart_str 追加一个字符
+ * @param dest
+ * @param ch
+ * @param persistent
+ * @return
+ */
 static zend_always_inline void smart_str_appendc_ex(smart_str *dest, char ch, zend_bool persistent) {
 	size_t new_len = smart_str_alloc(dest, 1, persistent);
 	ZSTR_VAL(dest->s)[new_len - 1] = ch;
 	ZSTR_LEN(dest->s) = new_len;
 }
 
+/**
+ * 往 smart_str 追加 char* 字符串
+ * @param dest
+ * @param str
+ * @param len
+ * @param persistent
+ * @return
+ */
 static zend_always_inline void smart_str_appendl_ex(smart_str *dest, const char *str, size_t len, zend_bool persistent) {
 	size_t new_len = smart_str_alloc(dest, len, persistent);
 	memcpy(ZSTR_VAL(dest->s) + ZSTR_LEN(dest->s), str, len);
 	ZSTR_LEN(dest->s) = new_len;
 }
 
+/**
+ * 往 smart_str 追加一个 zend_string
+ * @param dest
+ * @param src
+ * @param persistent
+ * @return
+ */
 static zend_always_inline void smart_str_append_ex(smart_str *dest, const zend_string *src, zend_bool persistent) {
 	smart_str_appendl_ex(dest, ZSTR_VAL(src), ZSTR_LEN(src), persistent);
 }
 
+/**
+ * 往 smart_str 追加 smart_str
+ * @param dest
+ * @param src
+ * @param persistent
+ * @return
+ */
 static zend_always_inline void smart_str_append_smart_str_ex(smart_str *dest, const smart_str *src, zend_bool persistent) {
 	if (src->s && ZSTR_LEN(src->s)) {
 		smart_str_append_ex(dest, src->s, persistent);
 	}
 }
 
+/**
+ * smart_str 追加 int32 的 num
+ * @param dest
+ * @param num
+ * @param persistent
+ * @return
+ */
 static zend_always_inline void smart_str_append_long_ex(smart_str *dest, zend_long num, zend_bool persistent) {
 	char buf[32];
 	char *result = zend_print_long_to_buf(buf + sizeof(buf) - 1, num);
 	smart_str_appendl_ex(dest, result, buf + sizeof(buf) - 1 - result, persistent);
 }
 
+/**
+ * smart_str 追加 u_int32
+ * @param dest
+ * @param num
+ * @param persistent
+ * @return
+ */
 static zend_always_inline void smart_str_append_unsigned_ex(smart_str *dest, zend_ulong num, zend_bool persistent) {
 	char buf[32];
 	char *result = zend_print_ulong_to_buf(buf + sizeof(buf) - 1, num);
 	smart_str_appendl_ex(dest, result, buf + sizeof(buf) - 1 - result, persistent);
 }
 
+/**
+ * 覆盖 smart_str 追加 char*
+ * @param dest
+ * @param src
+ * @param len
+ * @return
+ */
 static zend_always_inline void smart_str_setl(smart_str *dest, const char *src, size_t len) {
 	smart_str_free(dest);
 	smart_str_appendl(dest, src, len);

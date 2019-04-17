@@ -256,6 +256,7 @@ static zend_always_inline zend_string *zend_string_realloc(zend_string *s, size_
 
 /**
  * 扩容到 len，保留原来的值
+ * 这个函数体现了 写时拷贝 的思想。也体现了写时分离的思想。
  * @param s
  * @param len
  * @param persistent
