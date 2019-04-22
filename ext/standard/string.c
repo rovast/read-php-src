@@ -1074,12 +1074,15 @@ PHP_FUNCTION(wordwrap)
  */
 PHPAPI void php_explode(const zend_string *delim, zend_string *str, zval *return_value, zend_long limit)
 {
+	/* str 首地址 */
 	char *p1 = ZSTR_VAL(str);
+	/* str 末地址 */
 	char *endp = ZSTR_VAL(str) + ZSTR_LEN(str);
+	/* 找到第一个 delim 出现的位置 */
 	char *p2 = (char *) php_memnstr(ZSTR_VAL(str), ZSTR_VAL(delim), ZSTR_LEN(delim), endp);
 	zval  tmp;
 
-	if (p2 == NULL) {
+	if (p2 == NULL) { /* 没有找到待分割的字符串 */
 		ZVAL_STR_COPY(&tmp, str);
 		zend_hash_next_index_insert_new(Z_ARRVAL_P(return_value), &tmp);
 	} else {
