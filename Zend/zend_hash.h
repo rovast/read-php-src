@@ -35,12 +35,12 @@
 #define HASH_ADD_NEW			(1<<3)
 #define HASH_ADD_NEXT			(1<<4)
 
-#define HASH_FLAG_PERSISTENT       (1<<0)
-#define HASH_FLAG_APPLY_PROTECTION (1<<1)
-#define HASH_FLAG_PACKED           (1<<2)
-#define HASH_FLAG_INITIALIZED      (1<<3)
-#define HASH_FLAG_STATIC_KEYS      (1<<4) /* long and interned strings */
-#define HASH_FLAG_HAS_EMPTY_IND    (1<<5)
+#define HASH_FLAG_PERSISTENT       (1<<0) /* 是否使用持久化内存（不使用内存池） */
+#define HASH_FLAG_APPLY_PROTECTION (1<<1) /* 是否开启递归遍历保护 */
+#define HASH_FLAG_PACKED           (1<<2) /* 是否是 packed array */
+#define HASH_FLAG_INITIALIZED      (1<<3) /* 是否已经初始化 */
+#define HASH_FLAG_STATIC_KEYS      (1<<4) /* long and interned strings | 标记是否是 long key 或者内部字符串 */
+#define HASH_FLAG_HAS_EMPTY_IND    (1<<5) /* 是否存在空的间接 val  */
 
 #define HT_IS_PACKED(ht) \
 	(((ht)->u.flags & HASH_FLAG_PACKED) != 0)

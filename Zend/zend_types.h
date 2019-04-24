@@ -214,13 +214,13 @@ struct _zend_array {
 		uint32_t flags;
 	} u;
 	uint32_t          nTableMask;
-	Bucket           *arData;
-	uint32_t          nNumUsed;
-	uint32_t          nNumOfElements;
-	uint32_t          nTableSize;
-	uint32_t          nInternalPointer;
-	zend_long         nNextFreeElement;
-	dtor_func_t       pDestructor;
+	Bucket           *arData;           /* 指向一段连续的内存，存放数据 */
+	uint32_t          nNumUsed;         /* 已使用的 bucket 数量（已使用 + 未使用） */
+	uint32_t          nNumOfElements;   /* 有效的 bucket 数量，此值 <= nNumUsed */
+	uint32_t          nTableSize;       /* HashTable 的大小，即所有 bucket 的大小 */
+	uint32_t          nInternalPointer; /* HashTable 的全局默认游标 */
+	zend_long         nNextFreeElement; /* HashTable 的自然 key */
+	dtor_func_t       pDestructor;      /* 析构函数 */
 };
 
 /*

@@ -125,18 +125,21 @@ static zend_always_inline uint32_t zend_hash_check_size(uint32_t nSize)
 #endif
 }
 
+/**
+ * 初始化 arData
+ */
 static zend_always_inline void zend_hash_real_init_ex(HashTable *ht, int packed)
 {
 	HT_ASSERT(GC_REFCOUNT(ht) == 1);
 	ZEND_ASSERT(!((ht)->u.flags & HASH_FLAG_INITIALIZED));
-	if (packed) {
+	if (packed) { /* packed array */
 		HT_SET_DATA_ADDR(ht, pemalloc(HT_SIZE(ht), (ht)->u.flags & HASH_FLAG_PERSISTENT));
-		(ht)->u.flags |= HASH_FLAG_INITIALIZED | HASH_FLAG_PACKED;
+		(ht)->u.flags |= HASH_FLAG_INITIALIZED | HASH_FLAG_PACKED; /* 修改 flag 为初始化，并且是 packed array */
 		HT_HASH_RESET_PACKED(ht);
-	} else {
+	} else { /* 普通 HashTable */
 		(ht)->nTableMask = -(ht)->nTableSize;
 		HT_SET_DATA_ADDR(ht, pemalloc(HT_SIZE(ht), (ht)->u.flags & HASH_FLAG_PERSISTENT));
-		(ht)->u.flags |= HASH_FLAG_INITIALIZED;
+		(ht)->u.flags |= HASH_FLAG_INITIALIZED; /* 修改 flag 为初始化 */
 		if (EXPECTED(ht->nTableMask == (uint32_t)-8)) {
 			Bucket *arData = ht->arData;
 
