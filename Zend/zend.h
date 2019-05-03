@@ -113,6 +113,9 @@ typedef struct _zend_trait_alias {
 	uint32_t modifiers;
 } zend_trait_alias;
 
+/**
+ * zend class 的数据结构
+ */
 struct _zend_class_entry {
 	char type;
 	zend_string *name;

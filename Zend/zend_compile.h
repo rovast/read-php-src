@@ -198,13 +198,13 @@ typedef struct _zend_oparray_context {
 	HashTable *labels;
 } zend_oparray_context;
 
-/* method flags (types) */
+/* method flags (types) | 类方法标记位 */
 #define ZEND_ACC_STATIC			0x01
 #define ZEND_ACC_ABSTRACT		0x02
 #define ZEND_ACC_FINAL			0x04
 #define ZEND_ACC_IMPLEMENTED_ABSTRACT		0x08
 
-/* class flags (types) */
+/* class flags (types) | 类的类型 */
 /* ZEND_ACC_IMPLICIT_ABSTRACT_CLASS is used for abstract classes (since it is set by any abstract method even interfaces MAY have it set, too). */
 /* ZEND_ACC_EXPLICIT_ABSTRACT_CLASS denotes that a class was explicitly defined as abstract by using the keyword. */
 #define ZEND_ACC_IMPLICIT_ABSTRACT_CLASS	0x10
@@ -215,7 +215,7 @@ typedef struct _zend_oparray_context {
 #define ZEND_ACC_ANON_BOUND                 0x200
 #define ZEND_ACC_INHERITED                  0x400
 
-/* method flags (visibility) */
+/* method flags (visibility) | 方法的访问权限 */
 /* The order of those must be kept - public < protected < private */
 #define ZEND_ACC_PUBLIC		0x100
 #define ZEND_ACC_PROTECTED	0x200
